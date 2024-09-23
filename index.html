@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Scoreboard</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script> <!-- Vue 3 CDN -->
+  <style>
+    .scoreboard {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    .scores {
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="scoreboard">
+      <h1>Live Scoreboard</h1>
+      <div v-if="connected">
+        <div class="scores">{{ teamA }}: {{ scoreA }} | {{ teamB }}: {{ scoreB }}</div>
+        <div>Waiting for score updates...</div>
+      </div>
+      <div v-else>
+        Connecting to WebSocket server...
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+
+    createApp({
+      data() {
+        return {
+          teamA: 'Team A',
+          teamB: 'Team B',
+          scoreA: 0,
+          scoreB: 0,
+          connected: false,
+          ws: null
+        }
+      },
+      mounted() {
+        this.connectWebSocket();
+      },
+      methods: {
+        connectWebSocket() {
+          const wsUrl = "ws://localhost:8080/ws"; // Update with your WebSocket server URL
+          this.ws = new WebSocket(wsUrl);
+
+          // When the connection is open, mark as connected
+          this.ws.onopen = () => {
+            this.connected = true;
+            console.log("WebSocket connected");
+          };
+
+          // When a message is received from the server, update the scores
+          this.ws.onmessage = (event) => {
+            console.log("Message received:", event.data);
+            const message = event.data.split(" | ");
+            const teamAScore = message[0].split(": ");
+            const teamBScore = message[1].split(": ");
+
+            this.teamA = teamAScore[0];
+            this.scoreA = parseInt(teamAScore[1]);
+            this.teamB = teamBScore[0];
+            this.scoreB = parseInt(teamBScore[1]);
+          };
+
+          // If the connection is closed, try reconnecting
+          this.ws.onclose = () => {
+            console.log("WebSocket connection closed, retrying...");
+            this.connected = false;
+            setTimeout(this.connectWebSocket, 3000); // Retry connection after 3 seconds
+          };
+        }
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
